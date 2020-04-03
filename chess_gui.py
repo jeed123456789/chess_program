@@ -1,12 +1,15 @@
 import tkinter
-from tkinter import messagebox
 from tkinter import PhotoImage
 import chess
+from tkinter import messagebox
+from PIL import Image
+from PIL import ImageTk
 
-
+board = chess.Board()
 positions = []
+num_moves = 0
 
-def print_board(board_2d, chess_frame):
+def print_board(board_2d, chess_frame, board_btn):
     piece_img = {
         "b":"bb",
         "B":"bw",
@@ -21,18 +24,45 @@ def print_board(board_2d, chess_frame):
         "r":"rb",
         "R":"rw"
         }
-    position = ''
+    colored = ['b1','d1','f1','h1',
+               'a2','c2','e2','g2',
+               'b3','d3','f3','h3',
+               'a4','c4','e4','g4',
+               'b5','d5','f5','h5',
+               'a6','c6','e6','g6',
+               'b7','d7','f7','h7',
+               'a8','c8','e8','g8',]
     piece_img_name = ''
     piece = ''
     for file in range(8):
         for rank in range(8):
-            if board_2d[file][rank] != '.':
-                piece = board_2d[file][rank]
-                piece_img_name = piece_img[piece]+'.png'
-                temp_img = PhotoImage(file = piece_img_name)
-                position = chr(file+96)+str(8-rank)
+            chess_btn = board_btn[file][rank]
+            pos = chr(97+rank)+str(file+1)
+            if pos in colored:
+                if board_2d[file][rank] != '.':
+                    piece = board_2d[file][rank]
+                    piece_img_name = 'img_chess/'+piece_img[piece]+'.png'
+                    temp_img = Image.open(piece_img_name)
+                    temp_img = temp_img.resize((45,44), Image.LANCZOS)
+                    photoImg = ImageTk.PhotoImage(temp_img)
+                    chess_btn.image = photoImg
+                    chess_btn.configure(image = photoImg, height = 50, width = 46)
+                else:
+                    chess_btn.image = ''
+                    chess_btn.configure(image = '', height = 3, width = 6)
+            else:
+                if board_2d[file][rank] != '.':
+                    piece = board_2d[file][rank]
+                    piece_img_name = 'img_chess/'+piece_img[piece]+'.png'
+                    temp_img = Image.open(piece_img_name)
+                    temp_img = temp_img.resize((45,45), Image.LANCZOS)
+                    photoImg = ImageTk.PhotoImage(temp_img)
 
-
+                    chess_btn.image = photoImg
+                    chess_btn.configure(image = photoImg, height = 50, width = 46)
+                else:
+                    chess_btn.image = ''
+                    chess_btn.configure(image = '', height = 3, width = 6)
 def change_2d(board):
     ascii_board = str(board)
     board_2d = []
@@ -44,191 +74,237 @@ def change_2d(board):
             rank = []
     return board_2d
 
-def game_over(board):
-    if board.is_stalemate() or board.is_insufficient_material() or board.is_game_over():
-        return True
-    else:
+def make_move(positions, board):
+    global num_moves
+    
+    initial_pos = positions[num_moves-2]
+    final_pos = positions[num_moves-1]
+    uci =  initial_pos + final_pos
+    if initial_pos == final_pos:
+        positions.remove(initial_pos)
+        positions.remove(final_pos)
+        num_moves-=2
         return False
+    if not board.is_game_over():
+        if not chess.Move.from_uci(uci) in board.legal_moves:
+            positions.remove(initial_pos)
+            positions.remove(final_pos)
+            num_moves-=2
+            return False
+        else:
+            board.push_uci(uci)
+            board_2d = change_2d(board)
+            print(board_2d)
+            print_board(board_2d, chess_frame, board_btn)
+            
+            if board.is_stalemate():
+                tkinter.messagebox.showinfo(title = 'Game ended', message = 'Stalemate')
+                root.destroy()
+            elif board.is_insufficient_material():
+                tkinter.messagebox.showinfo(title = 'Game ended', message = 'Insufficient material')
+                root.destroy()
+            elif board.is_checkmate():
+                if chess.WHITE:
+                    tkinter.messagebox.showinfo(title = 'Game ended', message = 'Black lost. White won.')
+                    root.destroy()
+                else:
+                    tkinter.messagebox.showinfo(titel = 'Game ended', message = 'White lost. Black won.')
+                    root.destroy()
+            elif board.is_check():
+                tkinter.messagebox.showinfo(title = 'Check', message = 'Check')
+            return True
 
-def make_move(board, uci):
-    if chess.Move.from_uci(uci) in board.legal_moves:
-        board.push_uci(uci)
-        return True
-    else:
-        return False
-
+    
+    
 def tell_position(btn_id):
-     positions.append(btn_id)
+    global num_moves
+    positions.append(btn_id)
+    num_moves+=1
+    if num_moves%2 == 0 and num_moves != 0:
+        if not make_move(positions, board):
+            tkinter.messagebox.showinfo(title = 'Illegal move', message = 'That is an illegal move')
 
-def wants_to_quit(root):
-    if messagebox.askokcancel(title = "Chess Program", detail = "Are you going to quit?"):
-        root.destroy
-    else:
-        messagebox.showwarning(title = "Returning to Game", detail = "You will return back to your game")
-
-board = chess.Board()
-board_2d = change_2d(board)
-
+def reset_game(board):
+    board.reset()
+    board_2d = change_2d(board)
+    print_board(board_2d, chess_frame, board_btn)
+    
 root = tkinter.Tk()
 root.title("Chess Program")
-root.geometry("1000x500")
-
-menubar = tkinter.Menu(root)
-root['menu'] = menubar
-menu_cmd = tkinter.Menu(menubar, tearoff = 0)
-menu_help = tkinter.Menu(menubar, tearoff = 0)
-menubar.add_cascade(menu = menu_cmd, label = 'Commands')
-menubar.add_cascade(menu = menu_help, label = "Help")
-menu_cmd.add_command(label = 'Quit', command = wants_to_quit(root))
-menu_cmd.add_command(label = 'Help')
+root.geometry("420x450")
 
 
 
 chess_frame = tkinter.Frame(root, height = 500, width = 500, relief = 'sunken', bd = 2, bg = '#D9E5FF')
 chess_frame.pack(side = 'left', expand = True, fill = 'both')
-action_frame = tkinter.Frame(root, height = 500, width = 500, relief = 'sunken', bd = 2, bg = '#D9E5FF')
-action_frame.pack(side = 'left', expand = True, fill = 'both')
 
-#, command = tell_position('a8')
 
-a8 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+
+a8 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('a8'))
 a8.grid(row = 0, column = 0)
-b8 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+b8 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('b8'))
 b8.grid(row = 0, column = 1)
-c8 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+c8 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('c8'))
 c8.grid(row = 0, column = 2)
-d8 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+d8 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('d8'))
 d8.grid(row = 0, column = 3)
-e8 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+e8 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('e8'))
 e8.grid(row = 0, column = 4)
-f8 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+f8 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('f8'))
 f8.grid(row = 0, column = 5)
-g8 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+g8 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('g8'))
 g8.grid(row = 0, column = 6)
-h8 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+h8 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('h8'))
 h8.grid(row = 0, column = 7)
 
-a7 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+a7 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('a7'))
 a7.grid(row = 1, column = 0)
-b7 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+b7 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('b7'))
 b7.grid(row = 1, column = 1)
-c7 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+c7 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('c7'))
 c7.grid(row = 1, column = 2)
-d7 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+d7 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('d7'))
 d7.grid(row = 1, column = 3)
-e7 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+e7 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('e7'))
 e7.grid(row = 1, column = 4)
-f7 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+f7 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('f7'))
 f7.grid(row = 1, column = 5)
-g7 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+g7 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('g7'))
 g7.grid(row = 1, column = 6)
-h7 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+h7 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('h7'))
 h7.grid(row = 1, column = 7)
 
-a6 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+a6 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('a6'))
 a6.grid(row = 2, column = 0)
-b6 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+b6 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('b6'))
 b6.grid(row = 2, column = 1)
-c6 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+c6 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('c6'))
 c6.grid(row = 2, column = 2)
-d6 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+d6 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('d6'))
 d6.grid(row = 2, column = 3)
-e6 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+e6 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('e6'))
 e6.grid(row = 2, column = 4)
-f6 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+f6 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('f6'))
 f6.grid(row = 2, column = 5)
-g6 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+g6 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('g6'))
 g6.grid(row = 2, column = 6)
-h6 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+h6 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('h6'))
 h6.grid(row = 2, column = 7)
 
-a5 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+a5 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('a5'))
 a5.grid(row = 3, column = 0)
-b5 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+b5 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('b5'))
 b5.grid(row = 3, column = 1)
-c5 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+c5 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('c5'))
 c5.grid(row = 3, column = 2)
-d5 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+d5 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('d5'))
 d5.grid(row = 3, column = 3)
-e5 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+e5 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('e5'))
 e5.grid(row = 3, column = 4)
-f5 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+f5 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('f5'))
 f5.grid(row = 3, column = 5)
-g5 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+g5 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('g5'))
 g5.grid(row = 3, column = 6)
-h5 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+h5 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('h5'))
 h5.grid(row = 3, column = 7)
 
-a4 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+a4 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('a4'))
 a4.grid(row = 4, column = 0)
-b4 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+b4 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('b4'))
 b4.grid(row = 4, column = 1)
-c4 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+c4 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('c4'))
 c4.grid(row = 4, column = 2)
-d4 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+d4 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('d4'))
 d4.grid(row = 4, column = 3)
-e4 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+e4 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('e4'))
 e4.grid(row = 4, column = 4)
-f4 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+f4 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('f4'))
 f4.grid(row = 4, column = 5)
-g4 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+g4 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('g4'))
 g4.grid(row = 4, column = 6)
-h4 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+h4 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('h4'))
 h4.grid(row = 4, column = 7)
 
-a3 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+a3 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('a3'))
 a3.grid(row = 5, column = 0)
-b3 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+b3 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('b3'))
 b3.grid(row = 5, column = 1)
-c3 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+c3 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('c3'))
 c3.grid(row = 5, column = 2)
-d3 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+d3 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('d3'))
 d3.grid(row = 5, column = 3)
-e3 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+e3 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('e3'))
 e3.grid(row = 5, column = 4)
-f3 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+f3 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('f3'))
 f3.grid(row = 5, column = 5)
-g3 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+g3 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('g3'))
 g3.grid(row = 5, column = 6)
-h3 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+h3 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('h3'))
 h3.grid(row = 5, column = 7)
 
-a2 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+a2 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('a2'))
 a2.grid(row = 6, column = 0)
-b2 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+b2 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('b2'))
 b2.grid(row = 6, column = 1)
-c2 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+c2 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('c2'))
 c2.grid(row = 6, column = 2)
-d2 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+d2 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('d2'))
 d2.grid(row = 6, column = 3)
-e2 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+e2 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('e2'))
 e2.grid(row = 6, column = 4)
-f2 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+f2 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('f2'))
 f2.grid(row = 6, column = 5)
-g2 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+g2 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('g2'))
 g2.grid(row = 6, column = 6)
-h2 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+h2 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('h2'))
 h2.grid(row = 6, column = 7)
 
-a1 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+a1 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('a1'))
 a1.grid(row = 7, column = 0)
-b1 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+b1 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('b1'))
 b1.grid(row = 7, column = 1)
-c1 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+c1 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('c1'))
 c1.grid(row = 7, column = 2)
-d1 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+d1 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('d1'))
 d1.grid(row = 7, column = 3)
-e1 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+e1 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('e1'))
 e1.grid(row = 7, column = 4)
-f1 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+f1 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('f1'))
 f1.grid(row = 7, column = 5)
-g1 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3)
+g1 = tkinter.Button(chess_frame, bg = 'green', width = 6, height = 3, command = lambda:tell_position('g1'))
 g1.grid(row = 7, column = 6)
-h1 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3)
+h1 = tkinter.Button(chess_frame, bg = 'white', width = 6, height = 3, command = lambda:tell_position('h1'))
 h1.grid(row = 7, column = 7)
 
+board_btn = [[a8, b8, c8, d8, e8, f8, g8, h8],
+                [a7, b7, c7, d7, e7, f7, g7, h7],
+                [a6, b6, c6, d6, e6, f6, g6, h6],
+                [a5, b5, c5, d5, e5, f5, g5, h5],
+                [a4, b4, c4, d4, e4, f4, g4, h4],
+                [a3, b3, c3, d3, e3, f3, g3, h3],
+                [a2, b2, c2, d2, e2, f2, g2, h2],
+                [a1, b1, c1, d1, e1, f1, g1, h1]]
 
-print_board(board_2d, chess_frame)
 
+
+
+board_2d = change_2d(board)
+print_board(board_2d, chess_frame,board_btn)  
+
+menubar = tkinter.Menu(root)
+root['menu'] = menubar
+menu_cmd = tkinter.Menu(menubar, tearoff = 0)
+menu_help  = tkinter.Menu(menubar, tearoff = 0)
+menubar.add_cascade(menu = menu_cmd, label = 'Commands')
+menubar.add_cascade(menu = menu_help, label = 'Help')
+menu_cmd.add_command(label = 'Quit', command =root.destroy)
+menu_cmd.add_command(label = 'Reset Game', command = lambda:reset_game(board))
+
+  
 
 root.mainloop()
+
+
+
+
+
