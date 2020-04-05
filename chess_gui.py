@@ -8,6 +8,7 @@ from PIL import ImageTk
 
 board = chess.Board() # initialize chess board in the start of a game
 positions = [] # intialize list that will have all the buttons/positions pushed later used for making uci
+uci_moves = []
 num_moves = 0 # initialize num_moves to keep track of how many moves were made in total both white and black
 
 # function to print the board, given the board_2d
@@ -89,8 +90,10 @@ def make_move(positions, board):
             return False
         else:
             board.push_uci(uci)
+            uci_moves.append(uci)
             board_2d = change_2d(board)
             print_board(board_2d, chess_frame, board_btn)
+            refresh_uci_string(uci_moves)
 
             # check if there is stalemate, insufficient material, or checkmate in the board, if there any of those create messagebox and destroy window
             if board.is_stalemate():
@@ -130,14 +133,50 @@ def reset_game(board):
 def offer_help():
     tkinter.messagebox.showinfo(title = 'Help', message = 'No help can be given in a fair game of chess')
 
+# function for unmaking previous move
+def unmake_move(board):
+    global num_moves
+    global positions
+    global uci_moves
+    board.pop()
+    board_2d = change_2d(board)
+    print_board(board_2d, chess_frame, board_btn)
+    initial_pos = positions[num_moves-2]
+    final_pos = positions[num_moves-1]
+    positions.remove(initial_pos)
+    positions.remove(final_pos)
+    uci = initial_pos+final_pos
+    num_moves-=2
+    uci_moves.remove(uci)
+    refresh_uci_string(uci_moves)
+
 # create root window for program, set title and size
 root = tkinter.Tk()
 root.title("Chess Program")
-root.geometry("420x450")
-
+root.minsize(550,450)
+root.maxsize(550,450)
 # create frame for where the board will stay in
-chess_frame = tkinter.Frame(root, height = 500, width = 420, relief = 'sunken', bd = 2, bg = '#D9E5FF')
-#chess_frame.pack(side = 'left', expand = True, fill = 'both')
+chess_frame = tkinter.Frame(root, relief = 'sunken', bd = 2, bg = '#D9E5FF')
+chess_frame.pack(side = 'left', expand = True, fill = 'both')
+function_frame = tkinter.Frame(root, relief = 'sunken', bd = 2, bg = '#D9E5FF')
+function_frame.pack(side = 'right', expand = True, fill = 'both')
+
+# function for refreshing uci string for function_frame
+def refresh_uci_string(uci_moves):
+    temp = ""
+    for i in range(len(uci_moves)):
+        if i%2 == 0:
+            temp = temp + str((i//2)+1)+'. '+uci_moves[i]+'\t'
+        else:
+            temp = temp+uci_moves[i]+'\n'
+    moves_uci.set(temp)
+    
+moves_uci = tkinter.StringVar()
+unmake_move_btn = tkinter.Button(function_frame, text = 'unmake last move',command = lambda:unmake_move(board))
+unmake_move_btn.pack()
+
+moves = tkinter.Label(function_frame, text = 'start', textvariable = moves_uci)
+moves.pack()
 
 # create button for each square in the board, the background, width, height, and bide command each button to tell_position
 # then place the button in appropiate grid to resemble a chess board
