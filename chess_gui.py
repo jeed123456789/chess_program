@@ -128,6 +128,8 @@ def reset_game(board):
     board.reset()
     board_2d = change_2d(board)
     print_board(board_2d, chess_frame, board_btn)
+    uci_moves= []
+    refresh_uci_string(uci_moves)
 
 # function for when help is pressed from the menu bar
 def offer_help():
@@ -149,6 +151,7 @@ def unmake_move(board):
     num_moves-=2
     uci_moves.remove(uci)
     refresh_uci_string(uci_moves)
+    moves_uci.set("")
 
 # create root window for program, set title and size
 root = tkinter.Tk()
