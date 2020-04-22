@@ -8,5 +8,5 @@ This program is a chess program intended for two players to play. It uses the ch
 ## ToDo
 - [x] create repo of the create task
 - [x] finish coding and debugging
-- [ ] answers to the questions of the create task
+- [x] answers to the questions of the create task
 - [ ] upload answers and video to APCSP Portfolio
