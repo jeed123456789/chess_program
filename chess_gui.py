@@ -158,8 +158,8 @@ def unmake_move(board):
 # create root window for program, set title and size
 root = tkinter.Tk()
 root.title("Chess Program")
-root.minsize(550,450)
-root.maxsize(550,450)
+root.geometry('550x450')
+
 # create frame for where the board will stay in
 chess_frame = tkinter.Frame(root, relief = 'sunken', bd = 2, bg = '#D9E5FF')
 chess_frame.pack(side = 'left', expand = True, fill = 'both')
